@@ -50,6 +50,57 @@ large cell and reports the distribution of those differences
 (mean, p50, p90, p99, max). If the small cell's spectrum is genuinely a subset
 of the large cell's, these differences should be near zero.
 
+## Theory: the eigenvector correlation function
+
+The intended follow-up analysis (once the cheap checks above pass) is a pairwise
+comparison of phonon eigenvectors between two structures — for example, a
+high-symmetry planar reference and a symmetry-broken, out-of-plane distorted
+structure. Modes are compared using the correlation function
+
+$$
+\mathrm{cor}(k, k') = \left| \sum_{i,\alpha} \Delta r_{k;\alpha i}\, \Delta r_{k';\alpha i} \right|
+$$
+
+where $\Delta r_{k;\alpha i}$ is the component of the normalized eigenvector of
+the $k$-th vibrational mode for atom $\alpha$ along direction
+$i \in \{x, y, z\}$.
+
+Correlation values run from 0 to 1: **0** means the modes $k$ and $k'$ are
+orthogonal, **1** means they are identical. Interpretation:
+
+- Non-zero elements concentrated on the **diagonal** with values near 1 → the
+  mode is essentially unchanged between the two structures (expected for bulk
+  phonons, which are only weakly perturbed).
+- **Off-diagonal** weight → the mode's polarization changes between structures.
+  A single mode in one structure mapping onto several modes in the other means
+  it has *split* rather than merely shifted in energy — the characteristic
+  signature of a soft mode decomposing into multiple quasi-local modes upon
+  symmetry-breaking distortion.
+
+A related useful quantity is the participation ratio, which quantifies how
+localized a mode is:
+
+$$
+\mathrm{PR}_k = \sum_{\alpha} \left( \sum_{i} \Delta r_{k;\alpha i}^{2} \right)^{2}
+$$
+
+High PR indicates that only a few atoms participate appreciably — i.e. a
+quasi-local mode rather than a delocalized bulk phonon.
+
+> **Note:** the current script does not read eigenvectors, so it does not yet
+> compute `cor(k, k')` or `PR_k`. It validates that the two `band.yaml` files
+> are comparable in the first place, which is the prerequisite for this analysis.
+
+### Reference
+
+The correlation function and participation ratio above follow the formulation
+in:
+
+> Z. Tang, F. Jia, G. J. Kim-Reyes, Y. Wu, J. R. Chelikowsky, and P. Zhang,
+> *Out-of-plane displacement of quantum color centers in monolayer h-BN*,
+> arXiv:2503.06931 [cond-mat.mes-hall] (submitted 10 March 2025).
+> https://arxiv.org/abs/2503.06931
+
 ## Requirements
 
 - Python ≥ 3.9
