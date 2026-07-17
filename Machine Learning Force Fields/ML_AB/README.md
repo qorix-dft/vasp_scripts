@@ -1,4 +1,4 @@
-# Machine Learning Force Fields
+# Machine Learning Force Fields: ML_AB
 
 Tools for VASP machine-learned force field (MLFF) training data.
 
