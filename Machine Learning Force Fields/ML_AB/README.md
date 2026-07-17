@@ -1,8 +1,8 @@
-# mlff
+# Machine Learning Force Fields
 
 Tools for VASP machine-learned force field (MLFF) training data.
 
-## purge_structures.f90
+## rm_structures.f90
 
 Removes a section (or several sections) of configurations from an `ML_ABN`
 training-data file and renumbers the remaining structures and basis sets
