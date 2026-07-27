@@ -1,4 +1,5 @@
-# Accelerationg your calculation with a force field: `run_vasp_ml_ai.sh`  (ML force field → ab initio)
+# Machine Learning Force fields: ML_FF
+## Accelerationg your calculation with a force field: `run_vasp_ml_ai.sh`  (ML force field → ab initio)
 
 One script that runs VASP. Everything machine-specific lives in four heredoc
 sections at the top, which you fill in by pasting your own files:
@@ -14,7 +15,7 @@ It is scheduler-agnostic because it never writes batch directives itself: your
 header is copied verbatim into the generated job script and submitted with the
 command you name in `SUBMIT_CMD` (`sbatch`, `qsub`, `bsub`, …).
 
-## What it does
+### What it does
 
 1. **Stage `ml`** — writes INCAR and KPOINTS, runs VASP with the ML force field
    active, and if the run has not converged copies `CONTCAR` → `POSCAR` and runs
@@ -31,7 +32,7 @@ each `POSCAR` is backed up before being overwritten. A finished stage drops a
 `.stage_<name>.done` marker, so a requeued or re-run job resumes instead of
 repeating work already done.
 
-## Usage
+### Usage
 
 ```bash
 ./run_vasp_ml_ai.sh              # write the job script and submit it
@@ -47,7 +48,7 @@ Inputs needed in the run directory: `POSCAR`, `POTCAR`, `ML_FF`. `INCAR` and
 `run` replays your header first (batch directives are just comments), so it
 works unchanged inside an interactive allocation or on a workstation.
 
-## Walltimes and job layout
+### Walltimes and job layout
 
 The two stages have separate hardcoded walltimes, since ML/MD cycles are
 normally much cheaper than ab initio ones:
@@ -71,7 +72,7 @@ If your header has no `@WALLTIME@` placeholder, it is copied through untouched
 and whatever walltime you hardcoded in it applies to both stages; `chain` mode
 says so when you submit.
 
-## Other settings
+### Other settings
 
 | Variable | Meaning |
 |---|---|
@@ -89,14 +90,14 @@ says so when you submit.
 All of them can also be set from the environment for a one-off run, e.g.
 `WALLTIME_AI=48:00:00 JOB_LAYOUT=chain ./run_vasp_ml_ai.sh`.
 
-## Porting to another machine
+### Porting to another machine
 
 Replace section 1 with that machine's header, section 4 with its launch line,
 and set `SUBMIT_CMD`. Nothing else is scheduler-aware: the job script `cd`s to
 an absolute path rather than relying on `$SLURM_SUBMIT_DIR`/`$PBS_O_WORKDIR`,
 and chaining is done by self-submission rather than dependency flags.
 
-## Testing it without a queue
+### Testing it without a queue
 
 Point `SUBMIT_CMD` at `bash` to execute the generated job script immediately in
 the current shell — useful for checking the workflow end to end (optionally with
