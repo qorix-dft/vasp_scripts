@@ -152,3 +152,139 @@ python compare_band_yaml.py unitcell/band.yaml supercell_2x2x1/band.yaml --posit
 - Atom matching is greedy and order-dependent. For structures with atoms much
   closer together than `--position-tolerance`, tighten the tolerance.
 
+
+# VASP Ab Initio Run Script Generator
+
+`generate_run_scripts.sh` splits a batch of ab initio VASP relaxations (one
+per `POSCAR-*` displacement) into groups, and writes a ready-to-submit
+scheduler script for each group. It's scheduler-agnostic — SLURM, PBS/Torque,
+LSF, or anything else — via a single editable settings block.
+
+## Why
+
+VASP jobs are often limited by a scheduler's max walltime. If you have
+hundreds or thousands of displacement configurations to relax, one giant job
+won't finish in time. This script divides the work into fixed-size groups,
+each becoming its own submittable job, so you can process the whole set
+across many separate allocations.
+
+## Requirements
+
+- Bash
+- A directory containing:
+  - `POSCAR-1`, `POSCAR-2`, ... `POSCAR-N` (zero-padded to 3 digits for
+    indices under 100 — e.g. `POSCAR-007`, `POSCAR-042`, `POSCAR-1080`)
+  - `KPOINTS`, `POTCAR`, `INCAR`
+- A working scheduler command on your cluster (`sbatch`, `qsub`, `bsub`, ...)
+  and VASP already set up (module/binary path)
+
+## Usage
+
+```bash
+bash generate_run_scripts.sh              # generate, then asks y/n to submit
+bash generate_run_scripts.sh --submit     # generate + submit everything, no prompt
+bash generate_run_scripts.sh --no-submit  # generate only, never submit
+```
+
+Manual submission always works too:
+
+```bash
+sbatch run_01.sh   # or qsub / bsub / whatever SUBMIT_CMD is set to
+```
+
+## What it creates
+
+For a run covering displacements 1–60, `run_01.sh` will contain a loop that,
+when executed by the scheduler, for each displacement `i`:
+
+1. Creates a `disp-<i>/` directory (e.g. `disp-001`, `disp-060`)
+2. Moves `POSCAR-<i>` into it as `POSCAR`
+3. Copies `KPOINTS`, `POTCAR`, `INCAR` into it
+4. Launches VASP inside that directory, writing `vasp.out`
+
+Each generated `run_XX.sh` is a complete, independent job — there's no
+cross-job dependency, so they can all be queued and run concurrently.
+
+> **Note:** `POSCAR-<i>` files are *moved*, not copied, into their
+> displacement directories — the originals are consumed once a group runs.
+
+## Configuration
+
+All settings are edited directly in the script. There are three blocks:
+
+### 1. Submission behavior
+
+```bash
+SUBMIT_DEFAULT="ask"   # "ask" | "yes" | "no"
+```
+
+Controls what happens when the script is run with no `--submit`/`--no-submit`
+flag.
+
+### 2. Supercomputer / scheduler settings
+
+The block to replace when moving to a different machine:
+
+```bash
+SUBMIT_CMD="sbatch"          # sbatch, qsub, bsub, ...
+JOB_NAME_PREFIX="phabinit"   # group number is appended automatically (g01, g02, ...)
+
+JOB_HEADER=$(cat << 'HEADER_EOF'
+#!/bin/bash -l
+#SBATCH --job-name=__JOBNAME__
+#SBATCH --account=...
+...
+HEADER_EOF
+)
+
+LAUNCH_CMD=$(cat << 'LAUNCH_EOF'
+  srun ... "$VASP" > vasp.out
+LAUNCH_EOF
+)
+```
+
+- `JOB_HEADER` is copied verbatim into every generated run file — scheduler
+  directives, module loads, and environment exports all go here. Use the
+  placeholder `__JOBNAME__` wherever the per-group job name should be
+  inserted.
+- `LAUNCH_CMD` is the actual parallel-launch line that runs VASP
+  (`srun`, `mpirun`, `aprun`, `ibrun`, ...).
+- Both use a quoted heredoc (`<< 'HEADER_EOF'`), so nothing inside is
+  evaluated when the generator runs — write runtime variables
+  (`$SLURM_SUBMIT_DIR`, `$PBS_O_WORKDIR`, `$VASP`, etc.) exactly as they
+  should appear; they're only evaluated later, when the generated job runs
+  on the cluster.
+
+The script is pre-filled with Pawsey/SLURM settings, so it works as-is on
+Pawsey. Swap this block out entirely to target a different cluster.
+
+### 3. Grouping parameters
+
+```bash
+TOTAL_POSCARS=1080   # total number of POSCAR-* files to process
+GROUP_SIZE=60         # displacements handled per run file/job
+OUTDIR="."            # where generated run_XX.sh files are written
+```
+
+`GROUP_SIZE` should be chosen so a group's total VASP runtime fits inside
+your scheduler's walltime limit. `TOTAL_POSCARS` and `GROUP_SIZE` together
+determine how many `run_XX.sh` files get created.
+
+## How grouping works
+
+Given `TOTAL_POSCARS` and `GROUP_SIZE`, the number of groups is:
+
+```
+NUM_GROUPS = ceil(TOTAL_POSCARS / GROUP_SIZE)
+```
+
+Groups are contiguous and non-overlapping (e.g. with `GROUP_SIZE=60`:
+`1–60`, `61–120`, ..., with the final group truncated to `TOTAL_POSCARS` if
+it doesn't divide evenly).
+
+## Files
+
+| File                     | Description                                      |
+|--------------------------|---------------------------------------------------|
+| `generate_run_scripts.sh`| The generator (this script)                       |
+| `run_01.sh` ... `run_NN.sh` | Generated, per-group scheduler scripts (output) |
