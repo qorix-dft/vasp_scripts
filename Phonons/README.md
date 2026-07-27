@@ -2,6 +2,8 @@
 
 Lightweight sanity-checking tools for [Phonopy](https://phonopy.github.io/phonopy/) output.
 
+
+# 'compare_band_yaml.py'
 ## Overview
 
 `compare_band_yaml.py` compares two Phonopy `band.yaml` files — typically a small
