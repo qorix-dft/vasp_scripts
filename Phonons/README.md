@@ -1,4 +1,4 @@
-# Phonons
+ Phonons
 
 Lightweight sanity-checking tools for [Phonopy](https://phonopy.github.io/phonopy/) output.
 
