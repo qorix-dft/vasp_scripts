@@ -36,7 +36,7 @@ repeating work already done.
 
 ```bash
 ./running_withFF.sh              # write the job script and submit it
-.running_withFF.sh write        # write the job script, don't submit
+./running_withFF.sh write        # write the job script, don't submit
 ./running_withFF.sh run          # run both stages here and now
 ./running_withFF.sh run ml       # run only the ML stage
 ./running_withFF.sh run ai       # run only the ab initio stage
