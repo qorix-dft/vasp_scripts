@@ -1,4 +1,4 @@
-#ML Accuracy: Hexagonal boron nitride
+# ML Accuracy: Hexagonal boron nitride
 
 # Per-Atom Displacement Viewer (`delta_pos.py`)
 
