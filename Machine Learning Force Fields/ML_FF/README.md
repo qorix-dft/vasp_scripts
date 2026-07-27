@@ -1,5 +1,5 @@
 # Machine Learning Force fields: ML_FF
-## Accelerationg your calculation with a force field: `run_vasp_ml_ai.sh`  (ML force field → ab initio)
+## Accelerationg your calculation with a force field: `running_withFF.sh`  (ML force field → ab initio)
 
 One script that runs VASP. Everything machine-specific lives in four heredoc
 sections at the top, which you fill in by pasting your own files:
@@ -35,11 +35,11 @@ repeating work already done.
 ### Usage
 
 ```bash
-./run_vasp_ml_ai.sh              # write the job script and submit it
-./run_vasp_ml_ai.sh write        # write the job script, don't submit
-./run_vasp_ml_ai.sh run          # run both stages here and now
-./run_vasp_ml_ai.sh run ml       # run only the ML stage
-./run_vasp_ml_ai.sh run ai       # run only the ab initio stage
+./running_withFF.sh              # write the job script and submit it
+.running_withFF.sh write        # write the job script, don't submit
+./running_withFF.sh run          # run both stages here and now
+./running_withFF.sh run ml       # run only the ML stage
+./running_withFF.sh run ai       # run only the ab initio stage
 ```
 
 Inputs needed in the run directory: `POSCAR`, `POTCAR`, `ML_FF`. `INCAR` and
@@ -88,7 +88,7 @@ says so when you submit.
 | `ARCHIVE_FILES` | files copied into `stage_*/` after every cycle |
 
 All of them can also be set from the environment for a one-off run, e.g.
-`WALLTIME_AI=48:00:00 JOB_LAYOUT=chain ./run_vasp_ml_ai.sh`.
+`WALLTIME_AI=48:00:00 JOB_LAYOUT=chain ./running_withFF.sh`.
 
 ### Porting to another machine
 
@@ -104,5 +104,5 @@ the current shell — useful for checking the workflow end to end (optionally wi
 a stub `$VASP`) before burning an allocation:
 
 ```bash
-SUBMIT_CMD=bash ./run_vasp_ml_ai.sh
+SUBMIT_CMD=bash ./running_withFF.sh
 ```
