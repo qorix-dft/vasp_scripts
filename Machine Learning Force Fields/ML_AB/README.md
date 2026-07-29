@@ -177,3 +177,153 @@ $ ./make_ab_outcars
   you hit either limit.
 - If an OUTCAR is missing energy, positions, stress, or lattice vectors, the
   program prints a warning naming the file rather than failing silently.
+
+# make_ab_merge_part
+
+Merge several VASP `ML_ABN`/`ML_AB` files (from different directories or
+runs) into a single `ML_AB_merge` file, ready for refitting — no need to run
+`ML_MODE = select` again unless you want to.
+
+## What it does
+
+- For each input, reads `DIR/ML_ABN` (falling back to `DIR/ML_AB` if
+  `ML_ABN` doesn't exist), or reads the given path directly if it's already
+  a file rather than a directory.
+- For every file, prints how many configurations it has and lets you choose
+  which ones to keep (a "first last" range, or `0 0`/empty = all) — so you
+  can merge any subset of any file, not just the last one.
+- Rebuilds the merged header from scratch: the number of configurations and
+  the number of basis sets per atom type are **counted**, never copied from
+  the input headers, and the maxima (atoms per system, atoms per atom type)
+  are taken over all files.
+- Merges atom types **by name** across files — the files don't need the same
+  species, the same number of species, or one being a subset of another.
+- Verifies each input file: the declared configuration count is checked
+  against what's actually present, and every basis set is checked to point
+  to a configuration that exists.
+- Compares atomic masses and reference atomic energies for a given species
+  across files and warns if they differ (the value from the first file that
+  introduces that species is the one kept in the output).
+- Configurations are copied **verbatim** — any line length, any number of
+  atoms per configuration is handled — and renumbered sequentially in the
+  merged file, with basis sets renumbered to match.
+
+## Requirements
+
+- `gfortran` (no external libraries)
+
+## Compilation
+
+```bash
+gfortran -o make_ab_merge_part make_ab_merge_part.f90
+```
+
+## Usage
+
+```bash
+./make_ab_merge_part [dir1 dir2 ...]
+```
+
+- Each argument is **either**:
+  - a directory — `DIR/ML_ABN` is read if it exists, otherwise `DIR/ML_AB`, or
+  - a path to an `ML_AB`/`ML_ABN` file itself.
+- **Without arguments**, the two directories hardcoded in the source
+  (`DIRDEF = 'data1', 'data2'`) are used — edit `DIRDEF` and recompile if you
+  want different defaults.
+- The merge order follows the order of the arguments.
+- Output is always written to `ML_AB_merge` in the current directory,
+  **overwriting any existing file of that name without asking** — rename or
+  copy it elsewhere once you're happy with it.
+- If you give a single file, `ML_AB_merge` ends up as a (possibly filtered)
+  copy of it; the program prints a warning to remind you of this.
+
+Example:
+
+```bash
+./make_ab_merge_part C_N-C_i_0024 C_N-C_i_0025 C_N-C_i_0046
+```
+
+Example session:
+
+```
+$ ./make_ab_merge_part run1 run2
+
+Reading run1/ML_ABN
+ configurations =       40, species =    2: C  B
+    basis sets per species =            5           3
+
+Reading run2/ML_ABN
+ configurations =       25, species =    2: C  N
+    basis sets per species =            3           2
+
+Merged species list:    3: C B N
+Note: run1/ML_ABN does not contain all the species
+Note: run2/ML_ABN does not contain all the species
+
+File run1/ML_ABN: configurations =       40
+Enter the first and last configuration to keep ("0 0" or empty = all): 
+
+   keeping  40  configurations
+
+File run2/ML_ABN: configurations =       25
+Enter the first and last configuration to keep ("0 0" or empty = all): 1 20
+   keeping  20  configurations
+
+The number of configurations            =  60
+The numbers of basis sets per atom type =            5           3           2
+Written to ML_AB_merge
+```
+
+## Output
+
+`ML_AB_merge`, with:
+
+- the rebuilt header (correct configuration count; the union of atom types
+  by name; recomputed maxima for atoms per system and per atom type)
+- reference atomic energies and masses per species (from whichever file
+  first introduced that species)
+- basis sets renumbered to match the merged configuration numbering, listed
+  per species in file order
+- the kept configurations, renumbered sequentially, copied verbatim from
+  their source files
+
+## Checks and warnings
+
+Hard errors (the program stops):
+- an input file's declared configuration count doesn't match what's
+  actually in the file
+- a basis set points to a configuration index outside `1..NCONF` of its own
+  file
+- configurations in an input file aren't numbered `1, 2, 3, ...`
+  consecutively
+- an input `ML_AB`/`ML_ABN` file is missing a required header block (number
+  of configurations, number/list of atom types, max atoms per system/type,
+  or the basis-set section)
+
+Warnings only (the program continues):
+- a species has a different mass or reference energy in different files
+- the version line (first line of the file) differs between files
+- a file's basis sets are all placeholders (one `"1 1"` per species) — this
+  usually means that file hasn't been through `ML_MODE = select` yet
+- reference atomic energy or atomic mass missing from a file's header
+  (treated as `0`)
+- a file doesn't contain all the species seen in the merged set
+
+## Notes and caveats
+
+- Species names are stored as `LEN=8` strings (`LNAM` parameter) — longer
+  names are truncated. Edit and recompile if you need longer names.
+- Lines are read into `LEN=1024` buffers (`LLIN` parameter) — plenty for the
+  usual one-atom-per-line `ML_AB` format, but edit and recompile if you ever
+  hit longer lines.
+- The output file name (`ML_AB_merge`) is fixed in the source (`OUTFILE`
+  parameter).
+
+## Typical workflow
+
+This program is the natural follow-up to `make_ab_outcars.f90`: build an
+initial `ML_AB` from a batch of OUTCARs, run VASP with `ML_MODE = select`
+in each configuration's folder (which writes out an `ML_ABN` containing the
+locally selected reference configurations), then use this program to fold
+all those per-folder `ML_ABN` files back into one training set — ready to
+refit without needing to re-run `ML_MODE = select`.
